@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIR Blackbox — Policy Engine Demo</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0f;color:#e0e0e0;overflow:hidden;height:100vh}
+.container{max-width:1100px;margin:0 auto;padding:20px;height:100vh;display:flex;flex-direction:column}
+header{text-align:center;padding:12px 0;flex-shrink:0}
+header h1{font-size:1.6em;color:#fff}header h1 span{color:#ef4444}
+header p{color:#888;font-size:0.85em}
+.badge{display:inline-block;background:#1a1a2e;border:1px solid #ef444433;color:#ef4444;padding:2px 10px;border-radius:12px;font-size:0.75em;margin-top:4px}
+.slide-area{flex:1;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+.slide{display:none;animation:fadeIn 0.4s ease}.slide.active{display:flex;flex-direction:column;gap:14px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.slide-title{font-size:1.15em;color:#ef4444;font-weight:600}
+.slide-subtitle{color:#aaa;font-size:0.85em;margin-top:-8px}
+.card{background:#111827;border:1px solid #1e293b;border-radius:10px;padding:16px;overflow:hidden}
+.card-header{font-size:0.8em;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:600}
+pre{background:#0d1117;border:1px solid #1e293b;border-radius:8px;padding:12px;font-size:0.78em;line-height:1.5;overflow-x:auto;color:#c9d1d9;font-family:'SF Mono',Monaco,monospace}
+.k{color:#ff7b72}.s{color:#a5d6ff}.n{color:#d2a8ff}.c{color:#8b949e;font-style:italic}.p{color:#79c0ff}.v{color:#ffa657}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.tier-card{border-radius:10px;padding:14px;text-align:center;border:2px solid}
+.tier-low{background:#0a1a0a;border-color:#22c55e44}.tier-low h3{color:#22c55e}
+.tier-med{background:#1a1500;border-color:#f59e0b44}.tier-med h3{color:#f59e0b}
+.tier-high{background:#1a0a0a;border-color:#ef444444}.tier-high h3{color:#ef4444}
+.tier-card h3{font-size:0.9em;margin-bottom:8px}
+.tier-card ul{list-style:none;text-align:left;font-size:0.75em;color:#aaa}
+.tier-card li{padding:3px 0;border-bottom:1px solid #ffffff08}
+.tier-card li:last-child{border:none}
+.tier-card .check{color:#22c55e}.tier-card .warn{color:#f59e0b}.tier-card .block{color:#ef4444}
+.anim-item{opacity:0;transform:translateX(-10px);transition:all 0.4s}.anim-item.show{opacity:1;transform:translateX(0)}
+.trust-meter{height:24px;background:#1e293b;border-radius:12px;overflow:hidden;position:relative;margin:6px 0}
+.trust-fill{height:100%;border-radius:12px;transition:width 1s ease,background 1s ease;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-size:0.7em;font-weight:600}
+.decision-flow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0}
+.decision-node{background:#1a1a2e;border:1px solid #333;border-radius:8px;padding:8px 12px;font-size:0.75em;text-align:center;min-width:100px}
+.decision-node.pass{border-color:#22c55e;color:#22c55e}
+.decision-node.fail{border-color:#ef4444;color:#ef4444}
+.decision-node.eval{border-color:#f59e0b;color:#f59e0b}
+.decision-arrow{color:#ef4444;font-size:1em}
+.kill-switch{background:linear-gradient(135deg,#1a0505,#2a0a0a);border:2px solid #ef4444;border-radius:10px;padding:16px;text-align:center;position:relative;overflow:hidden}
+.kill-switch::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(45deg,transparent,transparent 10px,#ef444408 10px,#ef444408 20px)}
+.kill-switch h3{color:#ef4444;font-size:1em;margin-bottom:6px}
+.kill-switch p{color:#ccc;font-size:0.8em}
+.switch-btn{display:inline-block;background:#ef4444;color:#fff;padding:6px 20px;border-radius:6px;margin-top:8px;font-weight:600;font-size:0.85em;cursor:pointer;border:none;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 #ef444466}50%{box-shadow:0 0 0 8px #ef444400}}
+.metric-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.metric{background:#0d1117;border:1px solid #1e293b;border-radius:8px;padding:10px;text-align:center}
+.metric .num{font-size:1.3em;font-weight:700}.metric .lbl{font-size:0.7em;color:#888;margin-top:2px}
+.num-green{color:#22c55e}.num-yellow{color:#f59e0b}.num-red{color:#ef4444}.num-blue{color:#3b82f6}
+nav{display:flex;justify-content:center;gap:8px;padding:10px 0;flex-shrink:0;align-items:center}
+nav button{background:#1a1a2e;border:1px solid #333;color:#e0e0e0;padding:6px 18px;border-radius:6px;cursor:pointer;font-size:0.8em;transition:all 0.2s}
+nav button:hover{border-color:#ef4444;color:#ef4444}
+nav button:disabled{opacity:0.3;cursor:not-allowed}
+nav .counter{color:#888;font-size:0.8em;min-width:60px;text-align:center}
+.tag{display:inline-block;padding:1px 6px;border-radius:3px;font-size:0.7em;margin:1px}
+.tag-green{background:#064e3b;color:#34d399}.tag-yellow{background:#422006;color:#fbbf24}.tag-red{background:#450a0a;color:#f87171}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<h1><span>AIR Blackbox</span> — Policy Engine</h1>
+<p>Risk-tiered autonomy, kill switches, and trust scoring</p>
+<span class="badge">Interactive Demo</span>
+</header>
+<div class="slide-area">
+
+<!-- Slide 1: Risk Tiers -->
+<div class="slide" id="s1">
+<div class="slide-title">Risk-Tiered Autonomy</div>
+<div class="slide-subtitle">Different actions get different levels of oversight</div>
+<div class="three-col">
+<div class="tier-card tier-low anim-item">
+<h3>Tier 1 — Low Risk</h3>
+<ul>
+<li><span class="check">✓</span> Read-only operations</li>
+<li><span class="check">✓</span> Internal tool calls</li>
+<li><span class="check">✓</span> Data lookups</li>
+<li><span class="check">✓</span> Summarization tasks</li>
+</ul>
+<p style="color:#22c55e;font-size:0.75em;margin-top:8px">→ Auto-approved</p>
+</div>
+<div class="tier-card tier-med anim-item">
+<h3>Tier 2 — Medium Risk</h3>
+<ul>
+<li><span class="warn">⚠</span> External API calls</li>
+<li><span class="warn">⚠</span> File modifications</li>
+<li><span class="warn">⚠</span> Data exports</li>
+<li><span class="warn">⚠</span> Multi-step workflows</li>
+</ul>
+<p style="color:#f59e0b;font-size:0.75em;margin-top:8px">→ Logged + rate-limited</p>
+</div>
+<div class="tier-card tier-high anim-item">
+<h3>Tier 3 — High Risk</h3>
+<ul>
+<li><span class="block">✗</span> Financial transactions</li>
+<li><span class="block">✗</span> PII access / sharing</li>
+<li><span class="block">✗</span> Privilege escalation</li>
+<li><span class="block">✗</span> External comms</li>
+</ul>
+<p style="color:#ef4444;font-size:0.75em;margin-top:8px">→ Human approval required</p>
+</div>
+</div>
+<div class="card">
+<div class="card-header">Policy Configuration</div>
+<pre><span class="k">policies</span>:
+  - <span class="n">name</span>: <span class="s">financial-guard</span>
+    <span class="n">tier</span>: <span class="v">3</span>
+    <span class="n">match</span>:
+      <span class="n">tool_patterns</span>: [<span class="s">"payment.*"</span>, <span class="s">"transfer.*"</span>, <span class="s">"invoice.*"</span>]
+      <span class="n">attribute_patterns</span>: { <span class="s">"amount_usd"</span>: <span class="s">"> 100"</span> }
+    <span class="n">action</span>: <span class="k">require_approval</span>
+    <span class="n">notify</span>: [<span class="s">"#agent-alerts"</span>, <span class="s">"ops@company.com"</span>]</pre>
+</div>
+</div>
+
+<!-- Slide 2: Trust Scoring -->
+<div class="slide" id="s2">
+<div class="slide-title">Dynamic Trust Scoring</div>
+<div class="slide-subtitle">Trust is earned over time — agents that behave well get more autonomy</div>
+<div class="card">
+<div class="card-header">Agent Trust Scores (live)</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<div class="anim-item"><div style="display:flex;justify-content:space-between;font-size:0.8em;margin-bottom:2px"><span>research-bot-v2</span><span style="color:#22c55e">92/100</span></div><div class="trust-meter"><div class="trust-fill" style="width:92%;background:linear-gradient(90deg,#22c55e,#16a34a)">92</div></div></div>
+<div class="anim-item"><div style="display:flex;justify-content:space-between;font-size:0.8em;margin-bottom:2px"><span>email-assistant</span><span style="color:#f59e0b">67/100</span></div><div class="trust-meter"><div class="trust-fill" style="width:67%;background:linear-gradient(90deg,#f59e0b,#d97706)">67</div></div></div>
+<div class="anim-item"><div style="display:flex;justify-content:space-between;font-size:0.8em;margin-bottom:2px"><span>code-deployer</span><span style="color:#ef4444">34/100</span></div><div class="trust-meter"><div class="trust-fill" style="width:34%;background:linear-gradient(90deg,#ef4444,#dc2626)">34</div></div></div>
+<div class="anim-item"><div style="display:flex;justify-content:space-between;font-size:0.8em;margin-bottom:2px"><span>data-analyst</span><span style="color:#22c55e">88/100</span></div><div class="trust-meter"><div class="trust-fill" style="width:88%;background:linear-gradient(90deg,#22c55e,#16a34a)">88</div></div></div>
+</div>
+</div>
+<div class="two-col">
+<div class="card">
+<div class="card-header">Score factors (+ positive)</div>
+<pre><span class="check" style="color:#22c55e">+5</span>  Successful task completion
+<span class="check" style="color:#22c55e">+3</span>  Stayed within tier boundaries
+<span class="check" style="color:#22c55e">+2</span>  Efficient token usage
+<span class="check" style="color:#22c55e">+1</span>  Clean error handling
+<span class="check" style="color:#22c55e">+10</span> Passed policy audit</pre>
+</div>
+<div class="card">
+<div class="card-header">Score factors (- negative)</div>
+<pre><span class="block" style="color:#ef4444">-20</span> Policy violation
+<span class="block" style="color:#ef4444">-15</span> Attempted tier escalation
+<span class="block" style="color:#ef4444">-10</span> Loop detected (> threshold)
+<span class="block" style="color:#ef4444">-5</span>  Excessive token usage
+<span class="block" style="color:#ef4444">-30</span> Kill switch triggered</pre>
+</div>
+</div>
+</div>
+
+<!-- Slide 3: Decision Flow -->
+<div class="slide" id="s3">
+<div class="slide-title">Decision Flow: Every Action Evaluated</div>
+<div class="slide-subtitle">The Policy Engine intercepts every span before it's executed</div>
+<div class="card">
+<div class="card-header">Request evaluation pipeline</div>
+<div class="decision-flow">
+<div class="decision-node anim-item">Agent Request<br><small style="color:#888">tool.send_email</small></div>
+<div class="decision-arrow anim-item">→</div>
+<div class="decision-node eval anim-item">Classify Risk<br><small>Tier 2</small></div>
+<div class="decision-arrow anim-item">→</div>
+<div class="decision-node eval anim-item">Check Trust<br><small>Score: 67</small></div>
+<div class="decision-arrow anim-item">→</div>
+<div class="decision-node eval anim-item">Rate Limit<br><small>3/10 used</small></div>
+<div class="decision-arrow anim-item">→</div>
+<div class="decision-node pass anim-item">✓ ALLOW<br><small>Logged</small></div>
+</div>
+</div>
+<div class="card">
+<div class="card-header">Blocked request example</div>
+<div class="decision-flow">
+<div class="decision-node anim-item">Agent Request<br><small style="color:#888">payment.transfer $5000</small></div>
+<div class="decision-arrow anim-item">→</div>
+<div class="decision-node eval anim-item">Classify Risk<br><small>Tier 3</small></div>
+<div class="decision-arrow anim-item">→</div>
+<div class="decision-node eval anim-item">Check Trust<br><small>Score: 34</small></div>
+<div class="decision-arrow anim-item">→</div>
+<div class="decision-node fail anim-item">✗ BLOCKED<br><small>Low trust</small></div>
+<div class="decision-arrow anim-item">→</div>
+<div class="decision-node anim-item" style="border-color:#3b82f6;color:#3b82f6">Alert Sent<br><small>#agent-alerts</small></div>
+</div>
+</div>
+<div class="card">
+<div class="card-header">Policy Engine response</div>
+<pre>{
+  <span class="s">"decision"</span>: <span class="k">"BLOCKED"</span>,
+  <span class="s">"reason"</span>: <span class="s">"Tier 3 action requires trust >= 80, agent has 34"</span>,
+  <span class="s">"policy"</span>: <span class="s">"financial-guard"</span>,
+  <span class="s">"agent"</span>: <span class="s">"code-deployer"</span>,
+  <span class="s">"action"</span>: <span class="s">"payment.transfer"</span>,
+  <span class="s">"escalated_to"</span>: [<span class="s">"#agent-alerts"</span>, <span class="s">"ops@company.com"</span>]
+}</pre>
+</div>
+</div>
+
+<!-- Slide 4: Kill Switches -->
+<div class="slide" id="s4">
+<div class="slide-title">Kill Switches: Emergency Shutdown</div>
+<div class="slide-subtitle">Instantly halt any agent, agent group, or all agents</div>
+<div class="three-col">
+<div class="kill-switch anim-item">
+<h3>Agent Kill</h3>
+<p>Stop one specific agent</p>
+<div class="switch-btn">KILL code-deployer</div>
+</div>
+<div class="kill-switch anim-item">
+<h3>Group Kill</h3>
+<p>Stop all agents in a tier</p>
+<div class="switch-btn">KILL tier-3 agents</div>
+</div>
+<div class="kill-switch anim-item">
+<h3>Global Kill</h3>
+<p>Emergency: stop everything</p>
+<div class="switch-btn">KILL ALL AGENTS</div>
+</div>
+</div>
+<div class="two-col">
+<div class="card">
+<div class="card-header">API trigger</div>
+<pre><span class="k">POST</span> /api/v1/kill-switch
+{
+  <span class="s">"scope"</span>: <span class="s">"agent"</span>,
+  <span class="s">"target"</span>: <span class="s">"code-deployer"</span>,
+  <span class="s">"reason"</span>: <span class="s">"Suspicious file deletion"</span>,
+  <span class="s">"duration"</span>: <span class="s">"until_cleared"</span>,
+  <span class="s">"triggered_by"</span>: <span class="s">"ops@company.com"</span>
+}
+
+<span class="c">Response:</span>
+{
+  <span class="s">"status"</span>: <span class="k">"KILLED"</span>,
+  <span class="s">"affected_agents"</span>: <span class="v">1</span>,
+  <span class="s">"in_flight_actions"</span>: <span class="v">3</span>,
+  <span class="s">"actions_cancelled"</span>: <span class="v">3</span>,
+  <span class="s">"kill_id"</span>: <span class="s">"kill-20250115-001"</span>
+}</pre>
+</div>
+<div class="card">
+<div class="card-header">Auto-trigger conditions</div>
+<pre><span class="k">kill_switches</span>:
+  - <span class="n">name</span>: <span class="s">cost-circuit-breaker</span>
+    <span class="n">condition</span>:
+      <span class="n">metric</span>: <span class="s">hourly_cost_usd</span>
+      <span class="n">threshold</span>: <span class="v">50.00</span>
+    <span class="n">scope</span>: <span class="s">all</span>
+    <span class="n">action</span>: <span class="k">kill</span>
+
+  - <span class="n">name</span>: <span class="s">loop-breaker</span>
+    <span class="n">condition</span>:
+      <span class="n">metric</span>: <span class="s">repeat_tool_calls</span>
+      <span class="n">threshold</span>: <span class="v">10</span>
+      <span class="n">window</span>: <span class="s">5m</span>
+    <span class="n">scope</span>: <span class="s">agent</span>
+    <span class="n">action</span>: <span class="k">kill</span>
+
+  - <span class="n">name</span>: <span class="s">pii-leak-detector</span>
+    <span class="n">condition</span>:
+      <span class="n">event</span>: <span class="s">pii_detected_in_output</span>
+    <span class="n">scope</span>: <span class="s">agent</span>
+    <span class="n">action</span>: <span class="k">kill_and_quarantine</span></pre>
+</div>
+</div>
+</div>
+
+<!-- Slide 5: Dashboard Metrics -->
+<div class="slide" id="s5">
+<div class="slide-title">Live Policy Dashboard</div>
+<div class="slide-subtitle">Real-time visibility into agent governance</div>
+<div class="metric-row">
+<div class="metric anim-item"><div class="num num-green">1,247</div><div class="lbl">Actions Allowed</div></div>
+<div class="metric anim-item"><div class="num num-yellow">89</div><div class="lbl">Rate Limited</div></div>
+<div class="metric anim-item"><div class="num num-red">23</div><div class="lbl">Blocked</div></div>
+<div class="metric anim-item"><div class="num num-blue">2</div><div class="lbl">Kill Switches Active</div></div>
+</div>
+<div class="two-col">
+<div class="card">
+<div class="card-header">Recent policy decisions</div>
+<pre><span class="v">14:23:17</span> <span class="tag-green" style="color:#22c55e">ALLOW</span> research-bot → tool.search
+<span class="v">14:23:18</span> <span class="tag-green" style="color:#22c55e">ALLOW</span> email-assist → llm.chat
+<span class="v">14:23:19</span> <span class="tag-yellow" style="color:#f59e0b">LIMIT</span> data-analyst → tool.export (3/min)
+<span class="v">14:23:20</span> <span class="tag-red" style="color:#ef4444">BLOCK</span> code-deployer → payment.transfer
+<span class="v">14:23:21</span> <span class="tag-green" style="color:#22c55e">ALLOW</span> research-bot → tool.read_url
+<span class="v">14:23:22</span> <span class="tag-red" style="color:#ef4444">BLOCK</span> code-deployer → shell.exec
+<span class="v">14:23:23</span> <span class="tag-green" style="color:#22c55e">ALLOW</span> data-analyst → llm.chat
+<span class="v">14:23:24</span> <span class="tag-red" style="color:#ef4444">KILL </span> code-deployer (loop detected)</pre>
+</div>
+<div class="card">
+<div class="card-header">Policy violation breakdown</div>
+<pre><span class="v">Policy               Violations  Action</span>
+financial-guard      8           blocked
+pii-detector         5           blocked + alert
+rate-limiter         89          throttled
+loop-breaker         3           killed agent
+cost-circuit-breaker 0           —
+tier-escalation      7           blocked + logged
+
+<span class="c">Total decisions today: 1,359</span>
+<span class="c">Approval rate: 91.8%</span>
+<span class="c">Mean decision latency: 1.2ms</span></pre>
+</div>
+</div>
+</div>
+
+<!-- Slide 6: Integration -->
+<div class="slide" id="s6">
+<div class="slide-title">Integration: Middleware or Sidecar</div>
+<div class="slide-subtitle">Deploy as inline middleware or as a standalone policy sidecar</div>
+<div class="card">
+<div class="card-header">Docker Compose (with air-platform)</div>
+<pre><span class="k">services</span>:
+  <span class="n">policy-engine</span>:
+    <span class="k">image</span>: <span class="s">ghcr.io/airblackbox/agent-policy-engine:latest</span>
+    <span class="k">ports</span>:
+      - <span class="s">"9090:9090"</span>   <span class="c"># Policy API</span>
+    <span class="k">environment</span>:
+      <span class="v">POLICY_FILE</span>: <span class="s">/config/policies.yaml</span>
+      <span class="v">TRUST_DB</span>: <span class="s">/data/trust.db</span>
+      <span class="v">ALERT_WEBHOOK</span>: <span class="s">${SLACK_WEBHOOK_URL}</span>
+    <span class="k">volumes</span>:
+      - <span class="s">./policies.yaml:/config/policies.yaml:ro</span>
+      - <span class="s">trust-data:/data</span></pre>
+</div>
+<div class="card">
+<div class="card-header">SDK integration (Python)</div>
+<pre><span class="k">from</span> air_blackbox <span class="k">import</span> PolicyEngine
+
+engine = PolicyEngine(<span class="s">"http://policy-engine:9090"</span>)
+
+<span class="c"># Before every agent action:</span>
+decision = engine.evaluate(
+    agent=<span class="s">"research-bot-v2"</span>,
+    action=<span class="s">"tool.search"</span>,
+    context={<span class="s">"query"</span>: <span class="s">"competitor pricing"</span>}
+)
+
+<span class="k">if</span> decision.allowed:
+    result = execute_tool(action)
+<span class="k">else</span>:
+    log.warning(<span class="s">f"Blocked: {decision.reason}"</span>)</pre>
+</div>
+</div>
+
+</div>
+<nav>
+<button id="prev" onclick="go(-1)">← Prev</button>
+<span class="counter"><span id="cur">1</span> / <span id="tot">6</span></span>
+<button id="next" onclick="go(1)">Next →</button>
+</nav>
+</div>
+<script>
+let current=0;const slides=document.querySelectorAll('.slide'),total=slides.length;
+function show(n){slides.forEach(s=>s.classList.remove('active'));slides[n].classList.add('active');
+document.getElementById('cur').textContent=n+1;document.getElementById('tot').textContent=total;
+document.getElementById('prev').disabled=n===0;document.getElementById('next').disabled=n===total-1;
+setTimeout(()=>{const items=slides[n].querySelectorAll('.anim-item');items.forEach((el,i)=>{setTimeout(()=>el.classList.add('show'),i*120)})},100)}
+function go(d){const n=current+d;if(n>=0&&n<total){current=n;show(n)}}
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key===' ')go(1);if(e.key==='ArrowLeft')go(-1)});
+show(0);
+</script>
+</body>
+</html>
