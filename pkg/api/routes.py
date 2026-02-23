@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from pkg.engine.evaluator import PolicyEvaluator
@@ -191,4 +192,11 @@ def _rebuild_profiles():
 def create_app() -> FastAPI:
     app = FastAPI(title="Agent Policy Engine", version="0.1.0")
     app.include_router(router)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     return app
