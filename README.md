@@ -1,5 +1,10 @@
 # agent-policy-engine
 
+[![CI](https://github.com/airblackbox/agent-policy-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/airblackbox/agent-policy-engine/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/airblackbox/agent-policy-engine/blob/main/LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-3776AB.svg?logo=python&logoColor=white)](https://python.org)
+
+
 A production-ready policy engine for risk-tiered autonomy control in AI agents. Dynamically manages agent capability levels (Shadow → Gated → Supervised → Autonomous) based on demonstrated competence, enforces tool-level restrictions, and kills execution when limits are exceeded.
 
 ## Overview
